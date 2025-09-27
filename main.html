@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Photo Shirt Overlay Demo</title>
+  <style>
+    :root {
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      padding: 18px
+    }
+
+    #container {
+      position: relative;
+      width: 720px;
+      max-width: 95%
+    }
+
+    canvas {
+      width: 100%;
+      height: auto;
+      border-radius: 12px;
+      background: #000
+    }
+
+    .controls {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap
+    }
+
+    label {
+      display: inline-flex;
+      gap: 6px;
+      align-items: center
+    }
+
+    input[type=file] {
+      display: block
+    }
+
+    .note {
+      font-size: 0.9rem;
+      color: #444
+    }
+  </style>
+</head>
+
+<body>
+  <h2>Photo Shirt Overlay — pose detection</h2>
+  <div class="controls">
+    <label>your photo
+      <input id="photoInput" type="file" accept="image/*">
+    </label>
+    <label>shirt
+      <input id="shirtInput" type="file" accept="image/*">
+    </label>
+    <label>pants
+      <input id="pantsInput" type="file" accept="image/*">
+    </label>
+    <button id="toggleDetect">start</button>
+  </div>
+  <div id="container">
+    <canvas id="overlay"></canvas>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.9.0/dist/tf.min.js"></script>
+  <script
+    src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection@0.0.6/dist/pose-detection.min.js"></script>
+  <script>
+    const canvas = document.getElementById('overlay');
+    const ctx = canvas.getContext('2d');
+    const photoInput = document.getElementById('photoInput');
+    const shirtInput = document.getElementById('shirtInput');
+    const toggleDetect = document.getElementById('toggleDetect');
+
+    let detector = null;
+    let shirtImg = null;
+    let pantsImg = null;
+
+    let detectEnabled = true;
+    let userPhoto = null;
+
+
+
+    photoInput.addEventListener('change', (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      const url = URL.createObjectURL(file);
+      userPhoto = new Image();
+      userPhoto.onload = () => {
+        canvas.width = userPhoto.naturalWidth;
+        canvas.height = userPhoto.naturalHeight;
+        detectPose();
+      };
+      userPhoto.src = url;
+    });
+
+    shirtInput.addEventListener('change', (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        shirtImg = img;
+        URL.revokeObjectURL(url);
+        if (userPhoto) detectPose();
+      };
+      img.src = url;
+    });
+
+    toggleDetect.addEventListener('click', () => {
+      detectEnabled = !detectEnabled;
+      toggleDetect.textContent = detectEnabled ? 'Disable Detection' : 'Enable Detection';
+      if (detectEnabled && userPhoto) detectPose();
+    });
+
+    const pantsInput = document.getElementById('pantsInput');
+
+    pantsInput.addEventListener('change', (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        pantsImg = img;
+        URL.revokeObjectURL(url);
+        if (userPhoto) detectPose(); 
+      };
+      img.src = url;
+    });
+
+
+    async function detectPose() {
+      if (!userPhoto || !detector || !detectEnabled) return;
+      try {
+        const poses = await detector.estimatePoses(userPhoto, { maxPoses: 1, flipHorizontal: false });
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(userPhoto, 0, 0, canvas.width, canvas.height);
+
+        if (poses && poses.length > 0) {
+          const keypoints = poses[0].keypoints.reduce((acc, k) => { acc[k.name] = k; return acc; }, {});
+          const ls = keypoints['left_shoulder'];
+          const rs = keypoints['right_shoulder'];
+          const lh = keypoints['left_hip'];
+          const rh = keypoints['right_hip'];
+          const la = keypoints['left_ankle'];
+          const ra = keypoints['right_ankle'];
+          if (la && ra && lh && rh && pantsImg) {
+            drawPants(lh, rh, la, ra);
+          }
+          if (ls && rs && lh && rh && shirtImg) {
+            drawShirtOverTorso(ls, rs, lh, rh);
+          }
+
+          drawDebugPoints(poses[0].keypoints);
+        } else {
+        }
+      } catch (e) {
+        console.error('detector error', e);
+      }
+    }
+
+    function drawDebugPoints(kps) {
+      ctx.fillStyle = 'rgba(255,0,0,0.8)';
+      kps.forEach(p => { if (p.score > 0.4) ctx.beginPath(), ctx.arc(p.x, p.y, 4, 0, Math.PI * 2), ctx.fill(); });
+    }
+
+    function drawShirtOverTorso(ls, rs, lh, rh) {
+      const shoulderCenter = { x: (ls.x + rs.x) / 2, y: (ls.y + rs.y) / 2 };
+      const hipCenter = { x: (lh.x + rh.x) / 2, y: (lh.y + rh.y) / 2 };
+      const centerX = shoulderCenter.x;
+      const centerY = hipCenter.y + 25;
+
+      const torsoWidth = (rs.x - ls.x) * 1.80;
+      const torsoHeight = (hipCenter.y - shoulderCenter.y) * 1.5; 
+
+      ctx.save();
+      ctx.translate(centerX, centerY);
+      const angle = Math.atan2(rs.y - ls.y, rs.x - ls.x);
+      ctx.rotate(angle);
+      ctx.scale(1, -1); 
+      ctx.drawImage(shirtImg, -torsoWidth / 2, -torsoHeight, torsoWidth, torsoHeight);
+      ctx.restore();
+    }
+    function drawPants(lh, rh, la, ra) {
+      const center = { x: (lh.x + rh.x) / 2, y: (lh.y + la.y) / 2 };
+      const torsoHeight = rh.y - ra.y;
+      const pantsWidth = (rh.x - lh.x) * 1.75; 
+      const pantsHeight = torsoHeight * 1.25; 
+
+      ctx.save();
+      ctx.translate(center.x, center.y + pantsHeight / 2); 
+      ctx.drawImage(pantsImg, -pantsWidth / 2, -pantsHeight, pantsWidth, pantsHeight);
+      ctx.restore();
+    }
+
+
+  </script>
+</body>
+
+</html>
