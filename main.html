@@ -67,6 +67,9 @@
     <label>pants
       <input id="pantsInput" type="file" accept="image/*">
     </label>
+    <label>shoes
+      <input id="shoesInput" type="file" accept="image/*">
+    </label>
     <button id="toggleDetect">start</button>
   </div>
   <div id="container">
@@ -82,8 +85,9 @@
     const photoInput = document.getElementById('photoInput');
     const shirtInput = document.getElementById('shirtInput');
     const toggleDetect = document.getElementById('toggleDetect');
-
+    const shoesInput = document.getElementById('shoesInput');
     let detector = null;
+    let shoeImg = null;
     let shirtImg = null;
     let pantsImg = null;
 
@@ -91,6 +95,14 @@
     let userPhoto = null;
 
 
+    async function initDetector() {
+      detector = await poseDetection.createDetector(
+        poseDetection.SupportedModels.MoveNet,
+        { modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING }
+      );
+    }
+
+    initDetector();
 
     photoInput.addEventListener('change', (e) => {
       const file = e.target.files && e.target.files[0];
@@ -118,6 +130,20 @@
       img.src = url;
     });
 
+
+    shoesInput.addEventListener('change', (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        shoesImg = img;
+        URL.revokeObjectURL(url);
+        if (userPhoto) detectPose(); 
+      };
+      img.src = url;
+    });
+
     toggleDetect.addEventListener('click', () => {
       detectEnabled = !detectEnabled;
       toggleDetect.textContent = detectEnabled ? 'Disable Detection' : 'Enable Detection';
@@ -134,7 +160,7 @@
       img.onload = () => {
         pantsImg = img;
         URL.revokeObjectURL(url);
-        if (userPhoto) detectPose(); 
+        if (userPhoto) detectPose();
       };
       img.src = url;
     });
@@ -161,6 +187,9 @@
           if (ls && rs && lh && rh && shirtImg) {
             drawShirtOverTorso(ls, rs, lh, rh);
           }
+          if (la && ra && shoesImg) {
+            drawShoes(la, ra);
+          }
 
           drawDebugPoints(poses[0].keypoints);
         } else {
@@ -182,28 +211,42 @@
       const centerY = hipCenter.y + 25;
 
       const torsoWidth = (rs.x - ls.x) * 1.80;
-      const torsoHeight = (hipCenter.y - shoulderCenter.y) * 1.5; 
+      const torsoHeight = (hipCenter.y - shoulderCenter.y) * 1.5;
 
       ctx.save();
       ctx.translate(centerX, centerY);
       const angle = Math.atan2(rs.y - ls.y, rs.x - ls.x);
       ctx.rotate(angle);
-      ctx.scale(1, -1); 
+      ctx.scale(1, -1);
       ctx.drawImage(shirtImg, -torsoWidth / 2, -torsoHeight, torsoWidth, torsoHeight);
       ctx.restore();
     }
     function drawPants(lh, rh, la, ra) {
       const center = { x: (lh.x + rh.x) / 2, y: (lh.y + la.y) / 2 };
       const torsoHeight = rh.y - ra.y;
-      const pantsWidth = (rh.x - lh.x) * 1.75; 
-      const pantsHeight = torsoHeight * 1.25; 
+      const pantsWidth = (rh.x - lh.x) * 1.75;
+      const pantsHeight = torsoHeight * 1.25;
 
       ctx.save();
-      ctx.translate(center.x, center.y + pantsHeight / 2); 
+      ctx.translate(center.x, center.y + pantsHeight / 2);
       ctx.drawImage(pantsImg, -pantsWidth / 2, -pantsHeight, pantsWidth, pantsHeight);
       ctx.restore();
     }
 
+    function drawShoes(la, ra) {
+      if (!la || !ra || !shoesImg) return;
+
+      const centerX = (la.x + ra.x) / 2;
+      const centerY = (la.y + ra.y) / 2;
+
+      const shoesWidth = Math.abs(ra.x - la.x) * 2; // slightly wider than feet distance
+      const shoesHeight = shoesWidth / 2; // adjust aspect ratio as needed
+
+      ctx.save();
+      ctx.translate(centerX, centerY);
+      ctx.drawImage(shoesImg, -shoesWidth / 2, -shoesHeight / 2, shoesWidth, shoesHeight);
+      ctx.restore();
+    }
 
   </script>
 </body>
