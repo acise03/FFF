@@ -69,7 +69,6 @@
       color: #fff;
       font-weight: 600;
       cursor: pointer;
-      transition: background 0.3s;
     }
 
     button:hover {
@@ -94,7 +93,6 @@
     #outfitsGrid {
       display: grid;
       grid-template-columns: repeat(5, 1fr);
-      /* always 5 columns */
       gap: var(--gap);
       width: 100%;
       margin-top: 20px;
@@ -122,7 +120,6 @@
       background: #000;
     }
 
-    /* Modal Styles */
     #zoomModal {
       display: none;
       position: fixed;
@@ -269,7 +266,8 @@
             const ctx = canvas.getContext('2d');
 
             ctx.drawImage(userPhoto, 0, 0, canvas.width, canvas.height);
-
+            if (cards.length == 0)
+              drawKeypoints(ctx, keypoints);
             if (shirt && ls && rs && lh && rh) drawShirt(ctx, shirt, ls, rs, lh, rh);
             if (pant && lh && rh && la && ra) drawPants(ctx, pant, lh, rh, la, ra);
             if (shoe && la && ra) drawShoes(ctx, shoe, la, ra);
@@ -330,6 +328,21 @@
       ctx.translate(centerX, centerY);
       ctx.drawImage(img, -shoesWidth / 2, -shoesHeight / 2, shoesWidth, shoesHeight);
       ctx.restore();
+    }
+    function drawKeypoints(ctx, keypoints) {
+      ctx.fillStyle = 'red';
+      ctx.strokeStyle = 'white';
+      ctx.lineWidth = 2;
+
+      for (const name in keypoints) {
+        const kp = keypoints[name];
+        if (kp && kp.score > 0.3) {
+          ctx.beginPath();
+          ctx.arc(kp.x, kp.y, 4, 0, 2 * Math.PI);
+          ctx.fill();
+          ctx.stroke();
+        }
+      }
     }
   </script>
 </body>
