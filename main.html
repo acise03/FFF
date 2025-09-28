@@ -301,7 +301,7 @@
     function drawShirt(ctx, img, ls, rs, lh, rh) {
       const shoulderCenter = { x: (ls.x + rs.x) / 2, y: (ls.y + rs.y) / 2 };
       const hipCenter = { x: (lh.x + rh.x) / 2, y: (lh.y + rh.y) / 2 };
-      const torsoWidth = Math.abs(rs.x - ls.x) * 1.35;
+      const torsoWidth = Math.abs(rs.x - ls.x) * 1.5;
       const torsoHeight = (hipCenter.y - shoulderCenter.y) * 1.5;
 
       ctx.save();
@@ -312,7 +312,7 @@
     function drawPants(ctx, img, lh, rh, la, ra) {
       const center = { x: (lh.x + rh.x) / 2, y: (lh.y + la.y) / 2 };
       const pantsWidth = Math.abs(rh.x - lh.x) * 2.5;
-      const pantsHeight = (ra.y - lh.y) * 1.1;
+      const pantsHeight = (ra.y - lh.y) * 1.25;
       ctx.save();
       ctx.translate(center.x, center.y + pantsHeight / 2 - 20);
       ctx.drawImage(img, -pantsWidth / 2, -pantsHeight, pantsWidth, pantsHeight);
