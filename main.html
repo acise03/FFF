@@ -7,15 +7,14 @@
   <title>Photo Outfit Overlay</title>
   <style>
     :root {
-      font-family: 'Segoe UI',
-        Roboto,
-        Helvetica,
-        Arial,
-        sans-serif;
+      font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
       --primary: #4f46e5;
       --accent: #6366f1;
-      --border-radius: 12px;
-      --gap: 12px;
+      --border-radius: 14px;
+      --gap: 14px;
+      --shadow-light: rgba(0, 0, 0, 0.08);
+      --shadow-hover: rgba(0, 0, 0, 0.15);
+      --bg-color: #f3f4f6;
     }
 
     body {
@@ -23,15 +22,19 @@
       flex-direction: column;
       align-items: center;
       gap: var(--gap);
-      padding: 24px;
-      background: #f9fafb;
+      padding: 32px;
+      background: var(--bg-color);
       color: #111;
+      min-height: 100vh;
     }
 
     h2 {
-      font-size: 1.8rem;
-      margin-bottom: 12px;
+      font-size: 2rem;
+      font-weight: 700;
       color: var(--primary);
+      margin-bottom: 16px;
+      text-align: center;
+      letter-spacing: 1px;
     }
 
     .controls {
@@ -40,40 +43,57 @@
       gap: var(--gap);
       justify-content: center;
       background: #fff;
-      padding: 16px;
+      padding: 20px 24px;
       border-radius: var(--border-radius);
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+      box-shadow: 0 6px 16px var(--shadow-light);
+      transition: box-shadow 0.3s;
+    }
+
+    .controls:hover {
+      box-shadow: 0 8px 24px var(--shadow-hover);
     }
 
     label {
       display: flex;
       flex-direction: column;
-      font-size: 0.9rem;
-      gap: 4px;
+      font-size: 0.95rem;
+      gap: 6px;
       font-weight: 500;
       color: #374151;
+      min-width: 120px;
     }
 
     input[type=file] {
-      padding: 6px;
+      padding: 8px;
       border-radius: var(--border-radius);
       border: 1px solid #d1d5db;
       background: #f9fafb;
+      cursor: pointer;
+      transition: border 0.2s, 0.2s;
+    }
+
+    input[type=file]:hover {
+      border-color: var(--primary);
+      background: #f3f4f6;
     }
 
     button {
-      padding: 8px 16px;
+      padding: 10px 20px;
       border-radius: var(--border-radius);
       border: none;
       background: var(--primary);
       color: #fff;
       font-weight: 600;
       cursor: pointer;
-      transition: 0.3s;
+      font-size: 1rem;
+      transition:  0.3s, transform 0.2s, box-shadow 0.2s;
+      box-shadow: 0 4px 12px var(--shadow-light);
     }
 
     button:hover {
       background: var(--accent);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px var(--shadow-hover);
     }
 
     .preview-container {
@@ -89,6 +109,12 @@
       object-fit: cover;
       border-radius: var(--border-radius);
       border: 1px solid #d1d5db;
+      transition: transform 0.2s;
+    }
+
+    .preview-container img:hover {
+      transform: scale(1.1);
+      border-color: var(--primary);
     }
 
     #outfitsGrid {
@@ -96,22 +122,23 @@
       grid-template-columns: repeat(5, 1fr);
       gap: var(--gap);
       width: 100%;
-      margin-top: 20px;
+      margin-top: 24px;
     }
+
 
     .outfit-card {
       position: relative;
       border-radius: var(--border-radius);
       overflow: hidden;
       background: #fff;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+      box-shadow: 0 4px 12px var(--shadow-light);
       transition: transform 0.2s, box-shadow 0.2s;
       cursor: pointer;
     }
 
     .outfit-card:hover {
-      transform: scale(1.03);
-      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+      transform: scale(1.05);
+      box-shadow: 0 8px 24px var(--shadow-hover);
     }
 
     .outfit-card canvas {
@@ -129,7 +156,7 @@
       top: 0;
       width: 100%;
       height: 100%;
-      background: rgba(0, 0, 0, 0.7);
+      background: rgba(0, 0, 0, 0.75);
       justify-content: center;
       align-items: center;
     }
@@ -138,13 +165,13 @@
       max-width: 90%;
       max-height: 90%;
       border-radius: var(--border-radius);
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6);
     }
   </style>
 </head>
 
 <body>
-  <h2>FFF</h2>
+  <h2>FFF: Fight Fast Fashion</h2>
 
   <div class="controls">
     <label>Your Photo
@@ -167,13 +194,13 @@
   </div>
 
   <div id="outfitsGrid"></div>
-
   <div id="zoomModal"><img id="zoomImg" src=""></div>
 
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.9.0/dist/tf.min.js"></script>
   <script
     src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection@0.0.6/dist/pose-detection.min.js"></script>
   <script>
+
     const photoInput = document.getElementById('photoInput');
     const shirtInput = document.getElementById('shirtInput');
     const pantsInput = document.getElementById('pantsInput');
@@ -331,21 +358,21 @@
       ctx.restore();
     }
 
-     function drawPose(ctx, keypoints) {
+    function drawPose(ctx, keypoints) {
       const skeletonPairs = [
-        ['left_shoulder','right_shoulder'],
-        ['left_shoulder','left_elbow'], ['left_elbow','left_wrist'],
-        ['right_shoulder','right_elbow'], ['right_elbow','right_wrist'],
-        ['left_shoulder','left_hip'], ['right_shoulder','right_hip'],
-        ['left_hip','right_hip'],
-        ['left_hip','left_knee'], ['left_knee','left_ankle'],
-        ['right_hip','right_knee'], ['right_knee','right_ankle']
+        ['left_shoulder', 'right_shoulder'],
+        ['left_shoulder', 'left_elbow'], ['left_elbow', 'left_wrist'],
+        ['right_shoulder', 'right_elbow'], ['right_elbow', 'right_wrist'],
+        ['left_shoulder', 'left_hip'], ['right_shoulder', 'right_hip'],
+        ['left_hip', 'right_hip'],
+        ['left_hip', 'left_knee'], ['left_knee', 'left_ankle'],
+        ['right_hip', 'right_knee'], ['right_knee', 'right_ankle']
       ];
 
       ctx.strokeStyle = 'lime';
       ctx.lineWidth = 2;
 
-       for (const [a, b] of skeletonPairs) {
+      for (const [a, b] of skeletonPairs) {
         if (keypoints[a] && keypoints[b] && keypoints[a].score > 0.3 && keypoints[b].score > 0.3) {
           ctx.beginPath();
           ctx.moveTo(keypoints[a].x, keypoints[a].y);
@@ -354,14 +381,14 @@
         }
       }
 
-       ctx.fillStyle = 'red';
+      ctx.fillStyle = 'red';
       ctx.strokeStyle = 'white';
       ctx.lineWidth = 2;
       for (const name in keypoints) {
         const kp = keypoints[name];
         if (kp && kp.score > 0.3) {
           ctx.beginPath();
-          ctx.arc(kp.x, kp.y, 4, 0, 2*Math.PI);
+          ctx.arc(kp.x, kp.y, 4, 0, 2 * Math.PI);
           ctx.fill();
           ctx.stroke();
         }
@@ -369,4 +396,5 @@
     }
   </script>
 </body>
+
 </html>
