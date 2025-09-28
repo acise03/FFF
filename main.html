@@ -4,96 +4,197 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Photo Shirt Overlay Demo</title>
+  <title>Photo Outfit Overlay</title>
   <style>
     :root {
-      font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial
+      font-family: 'Segoe UI',
+        Roboto,
+        Helvetica,
+        Arial,
+        sans-serif;
+      --primary: #4f46e5;
+      --accent: #6366f1;
+      --border-radius: 12px;
+      --gap: 12px;
     }
 
     body {
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 12px;
-      padding: 18px
+      gap: var(--gap);
+      padding: 24px;
+      background: #f9fafb;
+      color: #111;
     }
 
-    #container {
-      position: relative;
-      width: 720px;
-      max-width: 95%
-    }
-
-    canvas {
-      width: 100%;
-      height: auto;
-      border-radius: 12px;
-      background: #000
+    h2 {
+      font-size: 1.8rem;
+      margin-bottom: 12px;
+      color: var(--primary);
     }
 
     .controls {
       display: flex;
-      gap: 8px;
-      align-items: center;
-      flex-wrap: wrap
+      flex-wrap: wrap;
+      gap: var(--gap);
+      justify-content: center;
+      background: #fff;
+      padding: 16px;
+      border-radius: var(--border-radius);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
     }
 
     label {
-      display: inline-flex;
-      gap: 6px;
-      align-items: center
+      display: flex;
+      flex-direction: column;
+      font-size: 0.9rem;
+      gap: 4px;
+      font-weight: 500;
+      color: #374151;
     }
 
     input[type=file] {
-      display: block
+      padding: 6px;
+      border-radius: var(--border-radius);
+      border: 1px solid #d1d5db;
+      background: #f9fafb;
     }
 
-    .note {
-      font-size: 0.9rem;
-      color: #444
+    button {
+      padding: 8px 16px;
+      border-radius: var(--border-radius);
+      border: none;
+      background: var(--primary);
+      color: #fff;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    button:hover {
+      background: var(--accent);
+    }
+
+    .preview-container {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-top: 4px;
+    }
+
+    .preview-container img {
+      width: 50px;
+      height: 50px;
+      object-fit: cover;
+      border-radius: var(--border-radius);
+      border: 1px solid #d1d5db;
+    }
+
+    #outfitsGrid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: var(--gap);
+      width: 100%;
+      margin-top: 20px;
+    }
+
+    .outfit-card {
+      position: relative;
+      border-radius: var(--border-radius);
+      overflow: hidden;
+      background: #fff;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+      transition: transform 0.2s, box-shadow 0.2s;
+      cursor: pointer;
+    }
+
+    .outfit-card:hover {
+      transform: scale(1.03);
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+    }
+
+    .outfit-card canvas {
+      display: block;
+      width: 100%;
+      height: auto;
+      background: #000;
+    }
+
+    /* Modal Styles */
+    #zoomModal {
+      display: none;
+      position: fixed;
+      z-index: 1000;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.7);
+      justify-content: center;
+      align-items: center;
+    }
+
+    #zoomModal img {
+      max-width: 90%;
+      max-height: 90%;
+      border-radius: var(--border-radius);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
     }
   </style>
 </head>
 
 <body>
-  <h2>Photo Shirt Overlay — pose detection</h2>
+  <h2>FFF</h2>
+
   <div class="controls">
-    <label>your photo
+    <label>Your Photo
       <input id="photoInput" type="file" accept="image/*">
+      <div class="preview-container" id="photoPreview"></div>
     </label>
-    <label>shirt
-      <input id="shirtInput" type="file" accept="image/*">
+    <label>tops
+      <input id="shirtInput" type="file" accept="image/*" multiple>
+      <div class="preview-container" id="shirtPreview"></div>
     </label>
-    <label>pants
-      <input id="pantsInput" type="file" accept="image/*">
+    <label>Pants
+      <input id="pantsInput" type="file" accept="image/*" multiple>
+      <div class="preview-container" id="pantsPreview"></div>
     </label>
-    <label>shoes
-      <input id="shoesInput" type="file" accept="image/*">
+    <label>Shoes
+      <input id="shoesInput" type="file" accept="image/*" multiple>
+      <div class="preview-container" id="shoesPreview"></div>
     </label>
-    <button id="toggleDetect">start</button>
+    <button id="toggleDetect">Start</button>
   </div>
-  <div id="container">
-    <canvas id="overlay"></canvas>
-  </div>
+
+  <div id="outfitsGrid"></div>
+
+  <div id="zoomModal"><img id="zoomImg" src=""></div>
 
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.9.0/dist/tf.min.js"></script>
   <script
     src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection@0.0.6/dist/pose-detection.min.js"></script>
   <script>
-    const canvas = document.getElementById('overlay');
-    const ctx = canvas.getContext('2d');
     const photoInput = document.getElementById('photoInput');
     const shirtInput = document.getElementById('shirtInput');
-    const toggleDetect = document.getElementById('toggleDetect');
+    const pantsInput = document.getElementById('pantsInput');
     const shoesInput = document.getElementById('shoesInput');
+    const toggleDetect = document.getElementById('toggleDetect');
+    const outfitsGrid = document.getElementById('outfitsGrid');
+
+    const photoPreview = document.getElementById('photoPreview');
+    const shirtPreview = document.getElementById('shirtPreview');
+    const pantsPreview = document.getElementById('pantsPreview');
+    const shoesPreview = document.getElementById('shoesPreview');
+
+    const zoomModal = document.getElementById('zoomModal');
+    const zoomImg = document.getElementById('zoomImg');
+
     let detector = null;
-    let shoeImg = null;
-    let shirtImg = null;
-    let pantsImg = null;
-
-    let detectEnabled = true;
+    let detectEnabled = false;
     let userPhoto = null;
-
+    let tops = [], pants = [], shoes = [];
+    let keypoints = null;
 
     async function initDetector() {
       detector = await poseDetection.createDetector(
@@ -101,153 +202,140 @@
         { modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING }
       );
     }
-
     initDetector();
 
-    photoInput.addEventListener('change', (e) => {
-      const file = e.target.files && e.target.files[0];
-      if (!file) return;
-      const url = URL.createObjectURL(file);
-      userPhoto = new Image();
-      userPhoto.onload = () => {
-        canvas.width = userPhoto.naturalWidth;
-        canvas.height = userPhoto.naturalHeight;
-        detectPose();
-      };
-      userPhoto.src = url;
-    });
-
-    shirtInput.addEventListener('change', (e) => {
-      const file = e.target.files && e.target.files[0];
-      if (!file) return;
-      const url = URL.createObjectURL(file);
-      const img = new Image();
-      img.onload = () => {
-        shirtImg = img;
-        URL.revokeObjectURL(url);
-        if (userPhoto) detectPose();
-      };
-      img.src = url;
-    });
-
-
-    shoesInput.addEventListener('change', (e) => {
-      const file = e.target.files && e.target.files[0];
-      if (!file) return;
-      const url = URL.createObjectURL(file);
-      const img = new Image();
-      img.onload = () => {
-        shoesImg = img;
-        URL.revokeObjectURL(url);
-        if (userPhoto) detectPose(); 
-      };
-      img.src = url;
-    });
-
-    toggleDetect.addEventListener('click', () => {
-      detectEnabled = !detectEnabled;
-      toggleDetect.textContent = detectEnabled ? 'Disable Detection' : 'Enable Detection';
-      if (detectEnabled && userPhoto) detectPose();
-    });
-
-    const pantsInput = document.getElementById('pantsInput');
-
-    pantsInput.addEventListener('change', (e) => {
-      const file = e.target.files && e.target.files[0];
-      if (!file) return;
-      const url = URL.createObjectURL(file);
-      const img = new Image();
-      img.onload = () => {
-        pantsImg = img;
-        URL.revokeObjectURL(url);
-        if (userPhoto) detectPose();
-      };
-      img.src = url;
-    });
-
-
-    async function detectPose() {
-      if (!userPhoto || !detector || !detectEnabled) return;
-      try {
-        const poses = await detector.estimatePoses(userPhoto, { maxPoses: 1, flipHorizontal: false });
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(userPhoto, 0, 0, canvas.width, canvas.height);
-
-        if (poses && poses.length > 0) {
-          const keypoints = poses[0].keypoints.reduce((acc, k) => { acc[k.name] = k; return acc; }, {});
-          const ls = keypoints['left_shoulder'];
-          const rs = keypoints['right_shoulder'];
-          const lh = keypoints['left_hip'];
-          const rh = keypoints['right_hip'];
-          const la = keypoints['left_ankle'];
-          const ra = keypoints['right_ankle'];
-          if (la && ra && lh && rh && pantsImg) {
-            drawPants(lh, rh, la, ra);
-          }
-          if (ls && rs && lh && rh && shirtImg) {
-            drawShirtOverTorso(ls, rs, lh, rh);
-          }
-          if (la && ra && shoesImg) {
-            drawShoes(la, ra);
-          }
-
-          drawDebugPoints(poses[0].keypoints);
-        } else {
-        }
-      } catch (e) {
-        console.error('detector error', e);
+    function updatePreview(files, container, array) {
+      array.length = 0;
+      container.innerHTML = '';
+      for (const file of files) {
+        const img = new Image();
+        img.src = URL.createObjectURL(file);
+        img.onload = () => URL.revokeObjectURL(img.src);
+        array.push(img);
+        const thumb = img.cloneNode();
+        container.appendChild(thumb);
       }
     }
 
-    function drawDebugPoints(kps) {
-      ctx.fillStyle = 'rgba(255,0,0,0.8)';
-      kps.forEach(p => { if (p.score > 0.4) ctx.beginPath(), ctx.arc(p.x, p.y, 4, 0, Math.PI * 2), ctx.fill(); });
+    photoInput.addEventListener('change', e => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const img = new Image();
+      img.onload = async () => {
+        userPhoto = img;
+        if (detector) {
+          const poses = await detector.estimatePoses(userPhoto, { maxPoses: 1, flipHorizontal: false });
+          if (poses.length > 0) {
+            keypoints = poses[0].keypoints.reduce((acc, k) => { acc[k.name] = k; return acc; }, {});
+          }
+        }
+         updatePreview([file], photoPreview, [userPhoto]);
+      };
+      img.src = URL.createObjectURL(file);
+    });
+
+    shirtInput.addEventListener('change', e => updatePreview(e.target.files, shirtPreview, tops));
+    pantsInput.addEventListener('change', e => updatePreview(e.target.files, pantsPreview, pants));
+    shoesInput.addEventListener('change', e => updatePreview(e.target.files, shoesPreview, shoes));
+
+    toggleDetect.addEventListener('click', () => {
+      detectEnabled = !detectEnabled;
+      toggleDetect.textContent = detectEnabled ? 'Stop' : 'Start';
+      if (detectEnabled) generateOutfits();
+      else outfitsGrid.innerHTML = '';
+    });
+
+    function generateOutfits() {
+      outfitsGrid.innerHTML = '';
+      if (!userPhoto || !keypoints || !detectEnabled) return;
+
+      const ls = keypoints['left_shoulder'], rs = keypoints['right_shoulder'];
+      const lh = keypoints['left_hip'], rh = keypoints['right_hip'];
+      const la = keypoints['left_ankle'], ra = keypoints['right_ankle'];
+
+      const shirtsOrNone = tops.length > 0 ? tops : [null];
+      const pantsOrNone = pants.length > 0 ? pants : [null];
+      const shoesOrNone = shoes.length > 0 ? shoes : [null];
+
+      for (const shirt of shirtsOrNone) {
+        for (const pant of pantsOrNone) {
+          for (const shoe of shoesOrNone) {
+            const canvas = document.createElement('canvas');
+            canvas.width = userPhoto.naturalWidth;
+            canvas.height = userPhoto.naturalHeight;
+            const ctx = canvas.getContext('2d');
+
+            ctx.drawImage(userPhoto, 0, 0, canvas.width, canvas.height);
+     //       drawKeypoints(ctx, keypoints);
+
+            if (shirt && ls && rs && lh && rh) drawShirt(ctx, shirt, ls, rs, lh, rh);
+            if (pant && lh && rh && la && ra) drawPants(ctx, pant, lh, rh, la, ra);
+            if (shoe && la && ra) drawShoes(ctx, shoe, la, ra);
+
+            const card = document.createElement('div');
+            card.className = 'outfit-card';
+            card.appendChild(canvas);
+            outfitsGrid.appendChild(card);
+
+            card.addEventListener('click', () => {
+              zoomImg.src = canvas.toDataURL();
+              zoomModal.style.display = 'flex';
+            });
+          }
+        }
+      }
     }
 
-    function drawShirtOverTorso(ls, rs, lh, rh) {
+    zoomModal.addEventListener('click', () => {
+      zoomModal.style.display = 'none';
+    });
+
+    function drawKeypoints(ctx, keypoints) {
+      ctx.fillStyle = 'red';
+      ctx.strokeStyle = 'white';
+      ctx.lineWidth = 2;
+      for (const k in keypoints) {
+        const point = keypoints[k];
+        if (point) {
+          ctx.beginPath();
+          ctx.arc(point.x, point.y, 5, 0, 2 * Math.PI);
+          ctx.fill();
+          ctx.stroke();
+        }
+      }
+    }
+
+    function drawShirt(ctx, img, ls, rs, lh, rh) {
       const shoulderCenter = { x: (ls.x + rs.x) / 2, y: (ls.y + rs.y) / 2 };
       const hipCenter = { x: (lh.x + rh.x) / 2, y: (lh.y + rh.y) / 2 };
-      const centerX = shoulderCenter.x;
-      const centerY = hipCenter.y + 25;
-
-      const torsoWidth = (rs.x - ls.x) * 1.80;
+      const torsoWidth = Math.abs(rs.x - ls.x) * 1.35;
       const torsoHeight = (hipCenter.y - shoulderCenter.y) * 1.5;
 
       ctx.save();
-      ctx.translate(centerX, centerY);
-      const angle = Math.atan2(rs.y - ls.y, rs.x - ls.x);
-      ctx.rotate(angle);
-      ctx.scale(1, -1);
-      ctx.drawImage(shirtImg, -torsoWidth / 2, -torsoHeight, torsoWidth, torsoHeight);
+      ctx.drawImage(img, shoulderCenter.x - torsoWidth / 2, shoulderCenter.y - 30, torsoWidth, torsoHeight);
       ctx.restore();
     }
-    function drawPants(lh, rh, la, ra) {
+
+    function drawPants(ctx, img, lh, rh, la, ra) {
       const center = { x: (lh.x + rh.x) / 2, y: (lh.y + la.y) / 2 };
-      const torsoHeight = rh.y - ra.y;
-      const pantsWidth = (rh.x - lh.x) * 1.75;
-      const pantsHeight = torsoHeight * 1.25;
-
+      const pantsWidth = Math.abs(rh.x - lh.x) * 2.5;
+      const pantsHeight = (ra.y - lh.y)*1.1;
       ctx.save();
-      ctx.translate(center.x, center.y + pantsHeight / 2);
-      ctx.drawImage(pantsImg, -pantsWidth / 2, -pantsHeight, pantsWidth, pantsHeight);
+      ctx.translate(center.x, center.y + pantsHeight / 2 - 20);
+      ctx.drawImage(img, -pantsWidth / 2, -pantsHeight, pantsWidth, pantsHeight);
       ctx.restore();
     }
 
-    function drawShoes(la, ra) {
-      if (!la || !ra || !shoesImg) return;
-
-      const centerX = (la.x + ra.x) / 2;
-      const centerY = (la.y + ra.y) / 2;
-
-      const shoesWidth = Math.abs(ra.x - la.x) * 2; // slightly wider than feet distance
-      const shoesHeight = shoesWidth / 2; // adjust aspect ratio as needed
-
+    function drawShoes(ctx, img, la, ra) {
+      const centerX = (la.x + ra.x) / 2 + 5;
+      const centerY = (la.y + ra.y) / 2 + 20;
+      const shoesWidth = Math.abs(ra.x - la.x) * 2.5;
+      const shoesHeight = shoesWidth  / 1.5
       ctx.save();
       ctx.translate(centerX, centerY);
-      ctx.drawImage(shoesImg, -shoesWidth / 2, -shoesHeight / 2, shoesWidth, shoesHeight);
+      ctx.drawImage(img, -shoesWidth / 2, -shoesHeight / 2, shoesWidth, shoesHeight);
       ctx.restore();
     }
-
   </script>
 </body>
 
