@@ -93,7 +93,8 @@
 
     #outfitsGrid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      grid-template-columns: repeat(5, 1fr);
+      /* always 5 columns */
       gap: var(--gap);
       width: 100%;
       margin-top: 20px;
@@ -152,7 +153,7 @@
       <input id="photoInput" type="file" accept="image/*">
       <div class="preview-container" id="photoPreview"></div>
     </label>
-    <label>tops
+    <label>Tops
       <input id="shirtInput" type="file" accept="image/*" multiple>
       <div class="preview-container" id="shirtPreview"></div>
     </label>
@@ -229,7 +230,7 @@
             keypoints = poses[0].keypoints.reduce((acc, k) => { acc[k.name] = k; return acc; }, {});
           }
         }
-         updatePreview([file], photoPreview, [userPhoto]);
+        updatePreview([file], photoPreview, [userPhoto]);
       };
       img.src = URL.createObjectURL(file);
     });
@@ -257,6 +258,8 @@
       const pantsOrNone = pants.length > 0 ? pants : [null];
       const shoesOrNone = shoes.length > 0 ? shoes : [null];
 
+      let cards = [];
+
       for (const shirt of shirtsOrNone) {
         for (const pant of pantsOrNone) {
           for (const shoe of shoesOrNone) {
@@ -266,7 +269,6 @@
             const ctx = canvas.getContext('2d');
 
             ctx.drawImage(userPhoto, 0, 0, canvas.width, canvas.height);
-     //       drawKeypoints(ctx, keypoints);
 
             if (shirt && ls && rs && lh && rh) drawShirt(ctx, shirt, ls, rs, lh, rh);
             if (pant && lh && rh && la && ra) drawPants(ctx, pant, lh, rh, la, ra);
@@ -275,35 +277,28 @@
             const card = document.createElement('div');
             card.className = 'outfit-card';
             card.appendChild(canvas);
-            outfitsGrid.appendChild(card);
 
             card.addEventListener('click', () => {
               zoomImg.src = canvas.toDataURL();
               zoomModal.style.display = 'flex';
             });
+
+            cards.push(card);
           }
         }
       }
+
+       for (let i = cards.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [cards[i], cards[j]] = [cards[j], cards[i]];
+      }
+
+      cards.forEach(card => outfitsGrid.appendChild(card));
     }
 
     zoomModal.addEventListener('click', () => {
       zoomModal.style.display = 'none';
     });
-
-    function drawKeypoints(ctx, keypoints) {
-      ctx.fillStyle = 'red';
-      ctx.strokeStyle = 'white';
-      ctx.lineWidth = 2;
-      for (const k in keypoints) {
-        const point = keypoints[k];
-        if (point) {
-          ctx.beginPath();
-          ctx.arc(point.x, point.y, 5, 0, 2 * Math.PI);
-          ctx.fill();
-          ctx.stroke();
-        }
-      }
-    }
 
     function drawShirt(ctx, img, ls, rs, lh, rh) {
       const shoulderCenter = { x: (ls.x + rs.x) / 2, y: (ls.y + rs.y) / 2 };
@@ -319,7 +314,7 @@
     function drawPants(ctx, img, lh, rh, la, ra) {
       const center = { x: (lh.x + rh.x) / 2, y: (lh.y + la.y) / 2 };
       const pantsWidth = Math.abs(rh.x - lh.x) * 2.5;
-      const pantsHeight = (ra.y - lh.y)*1.1;
+      const pantsHeight = (ra.y - lh.y) * 1.1;
       ctx.save();
       ctx.translate(center.x, center.y + pantsHeight / 2 - 20);
       ctx.drawImage(img, -pantsWidth / 2, -pantsHeight, pantsWidth, pantsHeight);
@@ -327,10 +322,10 @@
     }
 
     function drawShoes(ctx, img, la, ra) {
-      const centerX = (la.x + ra.x) / 2 + 5;
-      const centerY = (la.y + ra.y) / 2 + 20;
+      const centerX = (la.x + ra.x) / 2;
+      const centerY = (la.y + ra.y) / 2 + 40;
       const shoesWidth = Math.abs(ra.x - la.x) * 2.5;
-      const shoesHeight = shoesWidth  / 1.5
+      const shoesHeight = shoesWidth / 1.5;
       ctx.save();
       ctx.translate(centerX, centerY);
       ctx.drawImage(img, -shoesWidth / 2, -shoesHeight / 2, shoesWidth, shoesHeight);
